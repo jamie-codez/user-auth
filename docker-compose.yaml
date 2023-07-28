@@ -1,0 +1,71 @@
+version: "3.9"
+services:
+  user-auth:
+    container_name: user-auth
+    build: .
+    ports:
+      - "${APP_SOURCE_PORT}:${APP_DESTINATION_PORT}"
+    env_file:
+      - .env
+    expose:
+      - "${APP_DESTINATION_PORT}"
+    depends_on:
+      user-auth-db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - user-auth-network
+
+  user-auth-db:
+    image: postgres:13.3-alpine
+    container_name: user-auth-db
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_SOURCE_PORT}:${POSTGRES_DESTINATION_PORT}"
+    expose:
+      - "${POSTGRES_DESTINATION_PORT}"
+    volumes:
+      - ./postgrs_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - user-auth-network
+
+  pg_admin:
+    image: dpage/pgadmin4
+    container_name: pg_admin
+    env_file:
+      - .env
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "${PGADMIN_SOURCE_PORT}:${PGADMIN_DESTINATION_PORT}"
+    expose:
+      - "${PGADMIN_DESTINATION_PORT}"
+    depends_on:
+      - user-auth-db
+    networks:
+      - user-auth-network
+
+
+volumes:
+  postgres_data:
+    driver: local
+  app:
+    driver: local
+
+networks:
+  user-auth-network:
+    driver: bridge
+
+
